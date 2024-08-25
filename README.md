@@ -2,6 +2,9 @@
 
 This repository provides a comprehensive observability stack tailored for DevOps engineers. It integrates key tools like Prometheus, Grafana, cAdvisor, and Node Exporter to monitor, visualize, and manage your infrastructure and applications. Additionally, it includes a custom Notes App to demonstrate the observability stack in action.
 
+![Docker + cAdvisor Stack](assets/docker.png)
+![NodeExporter Stack](assets/nodeexporter.png)
+
 ## Table of Contents
 - [Overview](#overview)
 - [Tech Stack](#tech-stack)
