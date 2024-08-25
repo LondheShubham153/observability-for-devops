@@ -48,7 +48,12 @@ In modern DevOps, observability is key to ensuring the health and performance of
     - [Docker Installation Guide](https://docs.docker.com/get-docker/)
     - [Docker Compose Installation Guide](https://docs.docker.com/compose/install/)
 
-3. **Run the stack**:
+3. **Download Prometheus config file**:
+    ```bash
+    wget https://raw.githubusercontent.com/prometheus/prometheus/main/documentation/examples/prometheus.yml
+    ```
+    
+4. **Run the stack**:
     ```bash
     docker-compose up -d
     ```
