@@ -55,7 +55,7 @@ In modern DevOps, observability is key to ensuring the health and performance of
     
 4. **Run the stack**:
     ```bash
-    docker-compose up -d
+    docker compose up -d
     ```
 
 ## Usage
