@@ -69,9 +69,35 @@ services:
     networks:
       - monitoring
 
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    command:
+      - '-config.file=/etc/loki/local-config.yaml'
+    networks:
+      - monitoring
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      - /var/log:/var/log
+      - ./promtail.yml:/etc/promtail/promtail-config.yaml
+    command:
+      - '-config.file=/etc/promtail/promtail-config.yaml'
+    networks:
+      - monitoring
 
 networks:
   monitoring:
 
 volumes:
   prometheus_data:
+  loki_data:
