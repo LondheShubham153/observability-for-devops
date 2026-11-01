@@ -6,13 +6,18 @@ volumes:
   prometheus_data: {}
   grafana_data: {}
   loki_data: {}
+  tempo_data: {}
 
 services:
+  # --- Visualise: dashboards for metrics, logs and traces ---
   grafana:
-    image: grafana/grafana-enterprise
+    image: grafana/grafana:13.3.0
     container_name: grafana
     ports:
       - "3000:3000"
+    environment:
+      # Land on the "Start Here" dashboard after login
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/json/start-here.json
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
@@ -21,8 +26,9 @@ services:
       - monitoring
     restart: unless-stopped
 
+  # --- Metrics ---
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.15.1
     container_name: prometheus
     ports:
       - "9090:9090"
@@ -34,7 +40,7 @@ services:
     restart: unless-stopped
 
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.12.1
     container_name: node-exporter
     restart: unless-stopped
     volumes:
@@ -52,7 +58,7 @@ services:
       - monitoring
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: cadvisor
     ports:
       - "8080:8080"
@@ -65,8 +71,9 @@ services:
       - monitoring
     restart: unless-stopped
 
+  # --- Logs ---
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.7.9
     container_name: loki
     ports:
       - "3100:3100"
@@ -78,35 +85,42 @@ services:
       - monitoring
     restart: unless-stopped
 
-  promtail:
-    image: grafana/promtail:latest
-    container_name: promtail
+  # --- Traces ---
+  tempo:
+    image: grafana/tempo:2.10.10
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/tempo.yml"]
     volumes:
-      - ./promtail/promtail-config.yml:/etc/promtail/config.yaml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: -config.file=/etc/promtail/config.yaml
-    depends_on:
-      - loki
+      - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    expose:
+      - 3200   # Tempo query API (Grafana reads from here)
+      - 4317   # OTLP gRPC (Collector writes here)
     networks:
       - monitoring
     restart: unless-stopped
 
+  # --- OpenTelemetry Collector: receives all telemetry, routes it to the right backend ---
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
+    image: otel/opentelemetry-collector-contrib:0.163.2
     container_name: otel-collector
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./otel-collector/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - "4317:4317"
-      - "4318:4318"
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
     expose:
-      - 8889
+      - 8889          # app metrics (Prometheus scrapes here)
+      - 8888          # the Collector's own metrics (Prometheus scrapes here)
+    depends_on:
+      - loki
+      - tempo
     networks:
       - monitoring
     restart: unless-stopped
 
+  # --- Demo app: sends traces, metrics and logs to the Collector ---
   notes-app:
     image: notes-app:latest
     build:
@@ -115,6 +129,15 @@ services:
     container_name: notes-app
     ports:
       - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: notesapp.settings   # needed so OTel can load Django before manage.py runs
+      OTEL_SERVICE_NAME: notes-app
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+      OTEL_METRIC_EXPORT_INTERVAL: "15000"   # ms; default is 60s, shortened so the demo shows data quickly
+    depends_on:
+      - otel-collector
     networks:
       - monitoring
     restart: unless-stopped

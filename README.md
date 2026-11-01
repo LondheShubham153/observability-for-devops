@@ -5,66 +5,85 @@ Metrics, logs, and traces — one `docker compose up` away.
 ![Docker + cAdvisor Stack](assets/docker.png)
 ![NodeExporter Stack](assets/nodeexporter.png)
 
-## What's in the box
+## How it fits together
 
 ```
-Prometheus  ← scrapes ← Node Exporter, cAdvisor, OTEL Collector
-Loki        ← pushes  ← Promtail (container logs)
-OTEL        ← OTLP    → exports metrics to Prometheus
-Grafana     → queries  → Prometheus + Loki (auto-provisioned)
-Notes App   → demo workload
+                          ┌─► Prometheus (metrics) ─┐
+Notes App ──OTLP──► OTel Collector ─► Tempo (traces) ├─► Grafana
+ (auto-instrumented)      └─► Loki (logs) ──────────┘
+                                   
+Node Exporter, cAdvisor ──scraped by──► Prometheus   (host + container metrics)
 ```
+
+- The **app** is instrumented with zero code changes (`opentelemetry-instrument`, see `notes-app/Dockerfile`).
+- The **Collector** is the single front door: apps send OTLP, it routes each signal to the right backend (`otel-collector/otel-collector-config.yml`).
+- **Grafana** reads from all three backends. Datasources are provisioned for you.
 
 ## Quick start
 
 ```bash
-git clone https://github.com/yourusername/Observability-For-DevOps.git
+git clone https://github.com/LondheShubham153/Observability-For-DevOps.git
 cd Observability-For-DevOps
-docker compose up -d
+docker compose up -d --build
 ```
 
-That's it. Open http://localhost:3000 (admin/admin).
+Grafana: http://localhost:3000 (admin / admin)
 
-## Endpoints
+| Service | URL |
+|---------|-----|
+| Grafana | [:3000](http://localhost:3000) |
+| Prometheus | [:9090](http://localhost:9090) (check `/targets`) |
+| cAdvisor | [:8080](http://localhost:8080) |
+| Loki | [:3100](http://localhost:3100) |
+| OTel Collector | `:4317` gRPC / `:4318` HTTP |
+| Notes App | [:8000](http://localhost:8000) |
 
-| Service | URL | What it does |
-|---------|-----|--------------|
-| Grafana | [:3000](http://localhost:3000) | Dashboards for metrics + logs |
-| Prometheus | [:9090](http://localhost:9090) | Metrics store, check `/targets` |
-| Loki | [:3100](http://localhost:3100) | Log aggregation backend |
-| cAdvisor | [:8080](http://localhost:8080) | Container resource metrics |
-| OTEL Collector | `:4317` gRPC / `:4318` HTTP | Send OTLP traces, metrics, logs |
-| Notes App | [:8000](http://localhost:8000) | Sample Django app |
+## Dashboards (ready on first login)
 
-Node Exporter and Promtail run internally (no exposed ports needed).
+Grafana opens on **Start Here**, which links to everything else:
 
-## Sending traces to OTEL
+| Dashboard | Shows |
+|-----------|-------|
+| Start Here | Health at a glance, links to all dashboards |
+| Notes App (RED) | Rate, errors, latency, recent traces, logs |
+| Traces (Tempo) | All traces, slow traces, errors, Tempo health |
+| Logs (Loki) | Log volume, warnings and errors, live logs |
+| OpenTelemetry Collector | Spans/metrics/logs in and out, refused, queues |
+| Prometheus | Target health, series, scrape times |
+| Grafana | Request rate, latency, memory |
+| Host and Containers | CPU, memory, disk, per-container usage |
 
-The collector accepts OTLP on ports 4317 (gRPC) and 4318 (HTTP). Point your instrumented app at it:
+## Try it
 
-```bash
-# quick test
-curl -X POST http://localhost:4318/v1/traces \
-  -H 'Content-Type: application/json' \
-  -d '{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"my-app"}}]},"scopeSpans":[{"spans":[{"traceId":"aaaabbbbccccddddaaaabbbbccccdddd","spanId":"aaaabbbbccccdddd","name":"test","kind":1,"startTimeUnixNano":"1000000000","endTimeUnixNano":"2000000000","status":{}}]}]}]}'
-```
+1. **Make some traffic.** Open the [Notes App](http://localhost:8000) and create a few notes. Visiting a bad URL like `/nope` also makes a useful 404.
+2. **Metrics.** Grafana → Dashboards → *Notes App (RED)*. Or Explore → Prometheus and run:
+   `sum(rate(http_server_duration_milliseconds_count{exported_job="notes-app"}[1m]))`
+3. **Traces.** Explore → Tempo → Search → Service `notes-app` → open a trace. Click **Logs for this span** to jump to that request's logs.
+4. **Logs.** Explore → Loki and run: `{service_name="notes-app"}`
 
-Metrics from OTLP get exported to Prometheus. Traces go to debug logs (swap in Jaeger/Tempo when ready).
+App metrics can take up to ~30s to appear (export interval + Prometheus scrape).
+
+New to this? Follow the guided walkthrough in **[LEARN.md](LEARN.md)**.
 
 ## Project structure
 
 ```
 .
 ├── docker-compose.yml
-├── prometheus.yml                          # scrape config
-├── otel-collector/otel-collector-config.yml
+├── prometheus.yml                          # what Prometheus scrapes
+├── otel-collector/otel-collector-config.yml # receivers → processors → exporters
 ├── loki/loki-config.yml
-├── promtail/promtail-config.yml
+├── tempo/tempo.yml
 ├── grafana/provisioning/
-│   ├── datasources/datasources.yml         # Prometheus + Loki
-│   └── dashboards/dashboards.yml           # drop JSON files in dashboards/json/
+│   ├── datasources/datasources.yml         # Prometheus, Loki, Tempo (+ trace→logs link)
+│   └── dashboards/json/                    # 8 dashboards; drop more JSON here
 └── notes-app/                              # Django demo app
 ```
+
+## Notes
+
+- cAdvisor and Node Exporter mount host paths such as `/var/lib/docker`. On Docker Desktop (Mac/Windows) some container metrics may be missing. Everything else works.
+- Images are pinned to specific versions so the lessons keep working.
 
 ## Tear down
 

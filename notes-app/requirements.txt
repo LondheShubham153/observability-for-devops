@@ -7,3 +7,5 @@ pytz==2022.7.1
 sqlparse==0.4.3
 tzdata==2022.7
 whitenoise==6.3.0
+opentelemetry-distro==0.66b2
+opentelemetry-exporter-otlp==1.45.2
