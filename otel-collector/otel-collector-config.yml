@@ -1,3 +1,4 @@
+# Receive OTLP from apps -> batch -> send each signal to its backend.
 receivers:
   otlp:
     protocols:
@@ -10,12 +11,24 @@ processors:
   batch: {}
 
 exporters:
-  prometheus:
+  prometheus:                       # metrics: Prometheus scrapes this endpoint
     endpoint: 0.0.0.0:8889
-  debug:
-    verbosity: basic
+  otlp_grpc/tempo:                       # traces -> Tempo
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  otlp_http/loki:                    # logs -> Loki
+    endpoint: http://loki:3100/otlp
 
 service:
+  telemetry:
+    metrics:                        # the Collector's own health metrics, scraped by Prometheus
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
   pipelines:
     metrics:
       receivers: [otlp]
@@ -24,8 +37,8 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [otlp_grpc/tempo]
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [otlp_http/loki]

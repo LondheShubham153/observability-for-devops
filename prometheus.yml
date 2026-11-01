@@ -3,18 +3,42 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
+  # Prometheus monitoring itself
   - job_name: "prometheus"
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "docker"
+  # Container CPU/memory/network
+  - job_name: "cadvisor"
     static_configs:
       - targets: ["cadvisor:8080"]
 
+  # Host CPU/memory/disk
   - job_name: "node-exporter"
     static_configs:
       - targets: ["node-exporter:9100"]
 
+  # App metrics arriving via OpenTelemetry (the Collector exposes them here)
   - job_name: "otel-collector"
     static_configs:
       - targets: ["otel-collector:8889"]
+
+  # The Collector's own health (spans/logs/metrics accepted, refused, exported)
+  - job_name: "otel-collector-internal"
+    static_configs:
+      - targets: ["otel-collector:8888"]
+
+  # Grafana's own metrics
+  - job_name: "grafana"
+    static_configs:
+      - targets: ["grafana:3000"]
+
+  # Tempo's own metrics
+  - job_name: "tempo"
+    static_configs:
+      - targets: ["tempo:3200"]
+
+  # Loki's own metrics
+  - job_name: "loki"
+    static_configs:
+      - targets: ["loki:3100"]
