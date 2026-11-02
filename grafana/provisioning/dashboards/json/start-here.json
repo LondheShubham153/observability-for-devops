@@ -165,7 +165,7 @@
     },
     {
       "type": "stat",
-      "title": "Prometheus series",
+      "title": "Firing alerts",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -185,7 +185,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "prometheus_tsdb_head_series",
+          "expr": "count(ALERTS{alertstate=\"firing\"}) or vector(0)",
           "instant": true
         }
       ],
@@ -198,7 +198,7 @@
         "x": 0,
         "y": 8,
         "w": 24,
-        "h": 10
+        "h": 16
       },
       "options": {
         "showStarred": false,

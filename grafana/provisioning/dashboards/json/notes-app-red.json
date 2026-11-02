@@ -94,7 +94,7 @@
     },
     {
       "type": "table",
-      "title": "Recent traces (click one to open it, then 'Logs for this span')",
+      "title": "Recent traces (click one to open it, then 'Logs for this trace')",
       "datasource": {
         "type": "tempo",
         "uid": "tempo"

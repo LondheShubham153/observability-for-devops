@@ -9,9 +9,13 @@ from .models import Note
 # Create your views here.
 
 # A log written inside a view runs inside the request's trace, so OpenTelemetry
-# stamps it with the trace_id. That is what powers "Logs for this span" in Grafana.
+# stamps it with the trace_id. That is what powers "Logs for this trace" in Grafana.
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # the root logger defaults to WARNING, which would drop INFO
+
+# Django attaches the request object to its 404 log records. OTel can't store that type as an
+# attribute and warns on every 404 (the request is still kept as text), so silence that noise.
+logging.getLogger("opentelemetry.attributes").setLevel(logging.ERROR)
 
 @api_view(['GET'])
 def getRoutes(request):

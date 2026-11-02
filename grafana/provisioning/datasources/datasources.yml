@@ -8,6 +8,14 @@ datasources:
     uid: prometheus
     isDefault: true
 
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    uid: alertmanager
+    jsonData:
+      implementation: prometheus
+
   - name: Loki
     type: loki
     access: proxy
@@ -20,9 +28,12 @@ datasources:
     url: http://tempo:3200
     uid: tempo
     jsonData:
-      # "Logs for this span" button in a trace opens the matching Loki logs
+      # "Logs for this trace" button in a trace opens the matching Loki logs
       tracesToLogsV2:
         datasourceUid: loki
         filterByTraceID: true
+        # Widen the log search window: a span lasts a few ms and its log line can land just outside it
+        spanStartTimeShift: "-1m"
+        spanEndTimeShift: "1m"
         customQuery: true
         query: '{service_name="$${__span.tags["service.name"]}"} | trace_id="$${__span.traceId}"'
