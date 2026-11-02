@@ -1,0 +1,16 @@
+# Alertmanager receives alerts from Prometheus, groups them and decides who to notify.
+# Open http://localhost:9093 to see them.
+route:
+  receiver: default
+  group_by: [alertname]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+
+receivers:
+  # No notification target on purpose: alerts are just visible in the UI.
+  # To get notified, add a config here, for example:
+  #   slack_configs:
+  #     - api_url: https://hooks.slack.com/services/...
+  #       channel: "#alerts"
+  - name: default

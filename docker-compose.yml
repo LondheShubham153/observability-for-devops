@@ -35,6 +35,20 @@ services:
     volumes:
       - prometheus_data:/prometheus
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # --- Alerting: receives alerts from Prometheus ---
+  alertmanager:
+    image: prom/alertmanager:v0.34.2
+    container_name: alertmanager
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     networks:
       - monitoring
     restart: unless-stopped

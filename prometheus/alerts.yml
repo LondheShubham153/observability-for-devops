@@ -1,0 +1,28 @@
+# Alert rules. Prometheus evaluates these every 15s. An alert goes
+# pending -> firing once its condition has held for the `for:` time.
+groups:
+  - name: demo
+    rules:
+      # Fires when any scrape target stops responding.
+      # Try it:  docker stop node-exporter   (and docker start node-exporter to recover)
+      - alert: TargetDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is down"
+
+      # Fires when more than half of the notes-app requests fail (4xx/5xx).
+      # The traffic floor stops it firing on a single stray request.
+      # Try it:  ./scripts/traffic.sh errors
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_duration_milliseconds_count{exported_job="notes-app", http_status_code=~"[45].."}[1m]))
+            / sum(rate(http_server_duration_milliseconds_count{exported_job="notes-app"}[1m])) > 0.5
+          and sum(rate(http_server_duration_milliseconds_count{exported_job="notes-app"}[1m])) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 50% of notes-app requests are failing"
