@@ -58,7 +58,7 @@ Grafana opens on **Start Here**, which links to everything else:
 1. **Make some traffic.** Open the [Notes App](http://localhost:8000) and create a few notes. Visiting a bad URL like `/nope` also makes a useful 404.
 2. **Metrics.** Grafana → Dashboards → *Notes App (RED)*. Or Explore → Prometheus and run:
    `sum(rate(http_server_duration_milliseconds_count{exported_job="notes-app"}[1m]))`
-3. **Traces.** Explore → Tempo → Search → Service `notes-app` → open a trace. Click **Logs for this span** to jump to that request's logs.
+3. **Traces.** Explore → Tempo → TraceQL → run `{ name = "GET api/notes/" }` → open a trace. Click **Logs for this span** to jump to that request's logs.
 4. **Logs.** Explore → Loki and run: `{service_name="notes-app"}`
 
 App metrics can take up to ~30s to appear (export interval + Prometheus scrape).

@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -5,6 +7,11 @@ from .serializers import NoteSerializer
 from .models import Note
 
 # Create your views here.
+
+# A log written inside a view runs inside the request's trace, so OpenTelemetry
+# stamps it with the trace_id. That is what powers "Logs for this span" in Grafana.
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # the root logger defaults to WARNING, which would drop INFO
 
 @api_view(['GET'])
 def getRoutes(request):
@@ -46,6 +53,7 @@ def getRoutes(request):
 def getNotes(request):
     notes = Note.objects.all().order_by('-created')
     serializer = NoteSerializer(notes, many=True)
+    logger.info("listed %d notes", len(serializer.data))
     return Response(serializer.data)
 
 @api_view(['GET'])

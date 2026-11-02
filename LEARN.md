@@ -119,10 +119,13 @@ Only slow traces.
 
 ## 6. The payoff: jump between signals
 
-1. In **Explore → Tempo**, open any trace.
-2. Click **Logs for this span**. Grafana opens the logs from that exact request in Loki.
+1. Load the notes list in the app (or `curl localhost:8000/api/notes/`) so the request writes a log line.
+2. In **Explore → Tempo**, run `{ name = "GET api/notes/" }` and open a trace.
+3. Click **Logs for this span**. Grafana opens the logs from that exact request in Loki: `listed N notes`.
 
-How it works: the app stamps every log line with the active `trace_id`, and Grafana's Tempo datasource is told which Loki query to run (`grafana/provisioning/datasources/datasources.yml`). A metric tells you something is wrong, a trace shows where, and the log shows why.
+How it works: a log written while a request is being handled is stamped with that request's `trace_id`, and Grafana's Tempo datasource is told which Loki query to run (`grafana/provisioning/datasources/datasources.yml`). A metric tells you something is wrong, a trace shows where, and the log shows why.
+
+The log line comes from one line in `notes-app/api/views.py` (`logger.info("listed %d notes", ...)`). Only logs written inside a request get a trace ID, so traces for requests that log nothing have no logs to jump to. Also, Python's root logger defaults to WARNING, so an INFO log is dropped unless its logger is set to INFO (`logger.setLevel(logging.INFO)`).
 
 ## 7. How the pipeline is wired
 
@@ -169,6 +172,7 @@ Challenge: put this in `notes-app/api/views.py`, rebuild with `docker compose up
 | App metrics panels are empty | `rate()` needs recent traffic. Send requests and wait about 30s. |
 | `notes-app` crash-loops with `ALLOWED_HOSTS` error | `DJANGO_SETTINGS_MODULE` must be set in the environment (already in the compose file). |
 | `container_*{name="..."}` returns nothing | On Docker Desktop, cAdvisor labels containers by `id` only. Use `{id=~"/docker/.+"}`. |
+| "Logs for this span" shows nothing | That request wrote no log inside the request. Open a `GET api/notes/` trace. In your own code, make sure the logger level is INFO (see section 6). |
 | A trace ID from Tempo search finds no logs | Tempo drops leading zeros. Trace IDs are 32 hex characters, so left-pad with `0`. The "Logs for this span" button does this for you. |
 | Port 5000 already in use (your own Flask apps) | macOS AirPlay Receiver uses it. Pick another port. |
 | Datasource or dashboard errors after pulling changes | Old data volume. Run `docker compose down -v` and start again. |

@@ -40,8 +40,8 @@
       "type": "timeseries",
       "title": "Warnings and errors per minute (notes-app)",
       "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+        "type": "loki",
+        "uid": "loki"
       },
       "gridPos": {
         "x": 12,
